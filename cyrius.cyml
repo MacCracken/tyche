@@ -1,16 +1,24 @@
 [package]
 name = "tyche"
-version = "0.1.0"
-description = "tyche — TODO"
+version = "${file:VERSION}"
+description = "tyche — sovereign deterministic statistical PRNG (xorshift64). NOT a CSPRNG."
 license = "GPL-3.0-only"
 language = "cyrius"
 cyrius = "6.1.41"
+repository = "https://github.com/MacCracken/tyche"
 
 [build]
 entry = "src/main.cyr"
 test = "src/test.cyr"
-output = "tyche"
+output = "build/tyche"
+
+# `cyrius distlib` concatenates [lib].modules (in order) into dist/tyche.cyr —
+# the self-contained bundle consumers import via `[deps.tyche] modules =
+# ["dist/tyche.cyr"]`. main.cyr is excluded on purpose: it carries the smoke
+# main() + SYS_EXIT, not library surface.
+[lib]
+modules = ["src/rng.cyr"]
 
 [deps]
-stdlib = ["string", "fmt", "alloc", "io", "vec", "str", "syscalls", "assert", "bench"]
+stdlib = ["string", "fmt", "alloc", "io", "vec", "str", "syscalls", "assert", "bench", "math"]
 ---

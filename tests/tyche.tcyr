@@ -1,11 +1,77 @@
-# tyche test suite
-# Stdlib auto-included via cyrius.cyml
+# tyche test suite — statistical validation of the deterministic PRNG.
+# Stdlib auto-included via cyrius.cyml; f64_* are compiler builtins.
+include "src/rng.cyr"
+
+# |x - target| < tol   (all f64 bit patterns)
+fn _near(x, target, tol): i64 {
+    return f64_lt(f64_abs(f64_sub(x, target)), tol);
+}
 
 fn main() {
     alloc_init();
-    test_group("smoke");
-    assert(1, "true is true");
-    assert_eq(1 + 1, 2, "math works");
+
+    # ---- determinism: same seed reproduces the exact u64 stream ----
+    test_group("determinism");
+    rng_seed(12345);
+    var a0 = rng_u64(); var a1 = rng_u64(); var a2 = rng_u64();
+    rng_seed(12345);
+    var b0 = rng_u64(); var b1 = rng_u64(); var b2 = rng_u64();
+    assert_eq(a0, b0, "same seed -> identical u64[0]");
+    assert_eq(a1, b1, "same seed -> identical u64[1]");
+    assert_eq(a2, b2, "same seed -> identical u64[2]");
+
+    # ---- seed sensitivity: distinct seeds diverge immediately ----
+    test_group("seed sensitivity");
+    rng_seed(1); var p = rng_u64();
+    rng_seed(2); var q = rng_u64();
+    assert(p != q, "distinct seeds -> distinct first output");
+
+    # ---- zero fixed point guard: xorshift's fixed point is 0; the splitmix
+    #      finalizer + bump must keep seed 0 from freezing the stream ----
+    test_group("zero fixed point guard");
+    rng_seed(0);
+    var z0 = rng_u64(); var z1 = rng_u64();
+    assert(z0 != 0, "seed 0 does not produce a zero stream");
+    assert(z0 != z1, "stream advances after seed 0");
+
+    # ---- uniform: every draw in [0,1), sample mean ~ 0.5 ----
+    test_group("uniform distribution");
+    var n = 200000;
+    var one = f64_from(1);
+    var zero = f64_from(0);
+    var sum = f64_from(0);
+    var inrange = 1;
+    rng_seed(999);
+    var i = 0;
+    while (i < n) {
+        var u = rng_uniform();
+        # out of range if u < 0 OR not(u < 1)
+        if ((f64_lt(u, zero) == 1) || (f64_lt(u, one) == 0)) { inrange = 0; }
+        sum = f64_add(sum, u);
+        i = i + 1;
+    }
+    assert(inrange, "all uniform draws in [0,1)");
+    var umean = f64_div(sum, f64_from(n));
+    var half = f64_div(one, f64_from(2));
+    assert(_near(umean, half, f64_div(one, f64_from(100))), "uniform mean ~ 0.5 (+-0.01)");
+
+    # ---- normal: sample mean ~ 0, variance ~ 1 (var = E[x^2] - E[x]^2) ----
+    test_group("normal distribution");
+    var nsum = f64_from(0);
+    var nsumsq = f64_from(0);
+    rng_seed(777);
+    i = 0;
+    while (i < n) {
+        var x = rng_normal();
+        nsum = f64_add(nsum, x);
+        nsumsq = f64_add(nsumsq, f64_mul(x, x));
+        i = i + 1;
+    }
+    var nmean = f64_div(nsum, f64_from(n));
+    var nvar = f64_sub(f64_div(nsumsq, f64_from(n)), f64_mul(nmean, nmean));
+    assert(_near(nmean, zero, f64_div(one, f64_from(50))), "normal mean ~ 0 (+-0.02)");
+    assert(_near(nvar, one, f64_div(one, f64_from(20))), "normal variance ~ 1 (+-0.05)");
+
     return assert_summary();
 }
 
