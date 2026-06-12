@@ -16,6 +16,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sensitivity, zero-fixed-point guard, uniform range + mean≈0.5, normal
   mean≈0/variance≈1 over 200k draws. 10/10 passing.
 - `dist/tyche.cyr` consumable bundle via `cyrius distlib`.
+- CI/release workflows (`.github/workflows/`): toolchain installed via upstream
+  `install.sh` (pin from `cyrius.cyml`, the form that passes `cyrius deps`
+  pin-check), `workflow_call` CI gate, fmt/lint (120-char banner tolerated),
+  build+ELF+smoke, statistical tests, bench, fuzz, **distlib drift gate** (fails
+  if `dist/tyche.cyr` lags `src/`), and a tag-driven release that ships the
+  source tarball + version-stamped `dist/tyche.cyr` + SHA256SUMS. Modeled on
+  patra/sigil.
 
 ### Boundary
 - **Not a CSPRNG.** Statistical/reproducible use only — keys, nonces, tokens,
