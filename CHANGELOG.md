@@ -4,6 +4,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-05
+
+**v1.0 — a clean freeze.** No behavior change from 0.1.1: this cut freezes
+what four shipping consumers (attn11, tarka, rosnet `t_randn`, anukūlana via
+rosnet) have exercised unchanged since extraction — the multi-consumer soak
+is the readiness evidence. Surface: `rng_seed` / `rng_u64` / `rng_uniform` /
+`rng_normal` (+ the documented `_rng_state` checkpoint-capture exception).
+
+### Added
+- **`docs/api.md`** — the frozen 1.x surface with contract notes: one
+  process-global stream (per-stream handles = the flagged SMP-arc unwind
+  point, additive when it comes), bit-exact cross-platform determinism, the
+  STATISTICAL-not-cryptographic boundary (crypto → sigil), and the
+  `_rng_state` exception (checkpointing consumers capture it directly —
+  attn11's proven path — so it freezes as a single i64 cell).
+
 ## [0.1.1]
 
 ### Changed
