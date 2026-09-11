@@ -4,6 +4,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-11
+
+### Changed
+
+- **Toolchain `6.5.27` → `6.6.2`.** No source change — the largest pin jump in
+  this sweep so far, and it needed nothing. tyche has no `Result` / `Option` /
+  `Either` surface at all, so the 6.6.0 value form cannot reach it: zero compiler
+  rejections, zero fail-open sites, zero collisions. **10 assertions** pass.
+
+  Its six `callptr` sites were each traced to their target sets; none reaches a
+  pair-returning function.
+
 ## [1.0.1] - 2026-08-17
 
 ### Changed
