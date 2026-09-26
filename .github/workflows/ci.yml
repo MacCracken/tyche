@@ -16,7 +16,7 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Cyrius toolchain
         # The toolchain version is the cyrius.cyml [package].cyrius pin — the
@@ -101,7 +101,7 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Scan for dangerous patterns
         # Informational. tyche is pure arithmetic — no process/path/exec
         # surface — so these never fire today; kept for parity with sibling lib
@@ -119,7 +119,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check required docs
         # Only files that exist in tyche are gated — gating an absent file would
         # falsely red the build. dist/tyche.cyr is required: it is the shipped

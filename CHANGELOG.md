@@ -4,6 +4,37 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-09-25
+
+### Changed
+
+- **Toolchain `6.6.2` → `6.6.6`** (through 6.6.3–6.6.5). No source change, and
+  the output did not move: a golden dump of raw `rng_u64` / `rng_uniform` /
+  `rng_normal` bit patterns (10 edge seeds including 0, -1 and the i64
+  extremes, plus three 1M-round digests) is bit-identical between 1.0.2 @ 6.6.2
+  and 1.0.3 @ 6.6.6, on x86_64 and separately on aarch64 (qemu). **10
+  assertions** pass. None of the upstream upgrade notes reach tyche: the 6.6.5
+  aarch64 `SYS_UNLINKAT` renumber and the 6.6.6 Windows `O_APPEND` / `O_TRUNC`
+  fix (tyche never opens or unlinks a file), or 6.6.6's new global-redeclaration
+  and top-level-block-scope rules (tyche has neither shape). The shipped DCE
+  smoke binary grows 15,712 → 20,456 B, all of it the stdlib's.
+- **Vendored `lib/` re-synced** (`cyrius lib sync --full`) and now byte-matches
+  the 6.6.6 snapshot, 111 files: adds `alloc_cx.cyr`, `boxed.cyr` and
+  `hashseed.cyr`, and removes `lib/agnosys.cyr` — retired from the stdlib at
+  v6.2.37, never included by tyche, and left behind because `lib sync` does not
+  prune. This also completes the re-sync 1.0.2 left partial: its twelve folded
+  stdlibs (sigil, patra, mabda, …) had stayed behind the 6.6.2 pin, which is
+  what the `./lib/ shadows version-pinned` build warning was reporting.
+- **`cyrius.lock` regenerated** (`cyrius deps --lock`): 111 files, and
+  `cyrius deps --verify` is clean. It had gone stale — by 1.0.2, 35 of its 100
+  hashes no longer matched `lib/` — because plain `cyrius deps` only rewrites
+  the lock when it resolves a `[deps.NAME]` entry, and tyche has none.
+- **CI: `actions/checkout` `v4` → `v7`, `softprops/action-gh-release` `v2` →
+  `v3`.** Both are runtime moves (Node 20 → Node 24) with no input changes:
+  gh-release v3 still takes `name` / `body_path` / `prerelease` / `files`, and
+  checkout v7's new fork-checkout refusal applies only to `pull_request_target`
+  / `workflow_run`, which tyche does not use.
+
 ## [1.0.2] - 2026-09-11
 
 ### Changed
