@@ -78,6 +78,27 @@ jobs:
         # `cyrius test <file>` runs a single program and would NOT reach it.
         run: cyrius tests
 
+      - name: Tests + fuzz on aarch64 (qemu-user)
+        # The contract is "same seed, same bits on every target", and tests/tyche.tcyr
+        # pins exact bit patterns, so the suite has to RUN on a second architecture to
+        # test the contract at all. Through 1.0.3 rng_normal differed between x86_64 and
+        # aarch64 (f64_ln is x87 on one and a software polyfill on the other) while every
+        # x86-only gate stayed green. Fails rather than skips when the aarch64
+        # cross-compiler or qemu is missing: a skipped gate here would report green over
+        # exactly the property it exists to check.
+        run: |
+          [ -x "$HOME/.cyrius/bin/cycc_aarch64" ] || {
+            echo "::error::cycc_aarch64 not shipped with this Cyrius; cannot test the aarch64 half"; exit 1; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user || sudo apt-get install -y -qq qemu-user-static
+          QEMU="$(command -v qemu-aarch64 || command -v qemu-aarch64-static)" || {
+            echo "::error::no qemu-aarch64 binary after install"; exit 1; }
+          mkdir -p build
+          cyrius build --aarch64 tests/tyche.tcyr build/tyche-tcyr-a64
+          "$QEMU" build/tyche-tcyr-a64
+          CYRIUS_DCE=1 cyrius build --aarch64 tests/tyche.fcyr build/tyche-fuzz-a64
+          timeout 120 "$QEMU" build/tyche-fuzz-a64
+
       - name: Benchmarks
         run: CYRIUS_DCE=1 cyrius bench tests/tyche.bcyr
 

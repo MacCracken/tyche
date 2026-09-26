@@ -3,7 +3,7 @@
 ## Reporting
 
 Report vulnerabilities to **cyriusmaccken@gmail.com**. Include reproduction
-steps and the tyche version from `VERSION` (currently **0.1.1**). Expect an
+steps and the tyche version from `VERSION`. Expect an
 initial response within one week. Coordinated disclosure is appreciated — do not
 open a public GitHub issue with exploit details.
 
@@ -43,10 +43,13 @@ supplies. There is no input that crashes or corrupts the library:
 - All state is fixed-size scalars; there is no allocation, no buffer, no index
   derived from external data, and no recursion (`rng_normal`'s rejection loop is
   bounded in expectation and cannot read or write out of bounds).
-- f64 work is done with the compiler's `f64_*` builtins on IEEE-754 bit
-  patterns; there is no division by zero or domain error in the mapping paths
-  (the polar method only takes `ln(s)`/`sqrt` for `s` strictly inside the unit
-  circle).
+- f64 work uses only the IEEE-754 basic builtins (`f64_add`, `f64_sub`,
+  `f64_mul`, `f64_div`, `f64_sqrt`) on bit patterns. The polar method's
+  logarithm is tyche's own `_rng_ln`, which only ever receives `s` in
+  `[2^-104, 1)` — strictly inside the unit circle and never 0 — so there is no
+  division by zero, no domain error and no non-finite result. The fuzz harness
+  (`tests/tyche.fcyr`) checks that every normal is finite and within ±12.01, the
+  method's exact bound, across 100,005 seeds.
 
 tyche does **not** defend against an attacker with arbitrary code execution in
 the host process — they own the global state and the whole address space, which
@@ -54,11 +57,11 @@ is out of scope for any in-process library.
 
 ## Maturity
 
-tyche is **pre-1.0 (0.1.1)** and has **not** had a formal security audit. The
-threat surface above is small by construction (no I/O, no parsing, no
-allocation), so the assessment is structural rather than the result of a
-dedicated review. A formal audit (`docs/audit/YYYY-MM-DD-audit.md`) is a v1.0
-gate per [`docs/development/roadmap.md`](docs/development/roadmap.md). The
-not-a-CSPRNG boundary above is the load-bearing security property and is
-enforced by documentation and review, not by code — it cannot be, since
-predictability is inherent to the algorithm.
+tyche is **1.x**, with its API frozen at 1.0.0. A full audit sweep is recorded in
+[`docs/audit/2026-09-25-audit.md`](docs/audit/2026-09-25-audit.md). It found no
+security defect: the threat surface above is small by construction (no I/O, no
+parsing, no allocation), and the audit's fixes were to correctness,
+cross-platform determinism, tests and documentation. The not-a-CSPRNG boundary
+above is the load-bearing security property and is enforced by documentation
+and review, not by code — it cannot be, since predictability is inherent to the
+algorithm.

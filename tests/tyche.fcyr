@@ -1,14 +1,92 @@
-# tyche fuzz harness
+# tyche fuzz harness — property checks over seeds spread across all of i64.
+#
+# For each seed: the finalized state is never 0 (xorshift's fixed point); no u64
+# output is 0; uniforms lie in [0,1); normals are finite with |x| <= 12.01 (the
+# polar method's exact bound, sqrt(-2 ln s) at the smallest s = 2^-104); and
+# re-seeding replays the stream. _rng_ln is checked for monotonicity between
+# adjacent doubles, and for agreement with -k ln 2 at 2^-k (within 1 ulp).
+include "src/rng.cyr"
 
-fn fuzz_main(data, len) {
-    if (len == 0) { return 0; }
+var _fz_fail = 0;
+
+fn _fz_check(ok, what): i64 {
+    if (ok == 0) {
+        _fz_fail = _fz_fail + 1;
+        if (_fz_fail <= 10) { println(what); }
+    }
     return 0;
 }
 
-fn main() {
+# f64 bit pattern is finite (exponent field not all ones).
+fn _fz_finite(x): i64 {
+    return (((x >> 52) & 0x7FF) != 0x7FF);
+}
+
+# Seed the stream with `seed` and check every per-seed property above.
+fn fuzz_main(seed): i64 {
+    rng_seed(seed);
+    _fz_check(_rng_state != 0, "FAIL: seed finalized to state 0");
+    var first = rng_u64();
+    _fz_check(first != 0, "FAIL: u64 output 0");
+    var i = 0;
+    while (i < 8) {
+        _fz_check(rng_u64() != 0, "FAIL: u64 output 0");
+        var u = rng_uniform();
+        _fz_check(f64_lt(u, 0) == 0, "FAIL: uniform < 0");
+        _fz_check(f64_lt(u, 0x3FF0000000000000) == 1, "FAIL: uniform >= 1");
+        var z = rng_normal();
+        _fz_check(_fz_finite(z), "FAIL: normal not finite");
+        _fz_check(f64_lt(f64_abs(z), 0x4028051EB851EB85) == 1, "FAIL: |normal| > 12.01");
+        i = i + 1;
+    }
+    rng_seed(seed);
+    _fz_check(rng_u64() == first, "FAIL: re-seed does not replay the stream");
+    return 0;
+}
+
+# Drives fuzz_main over 100k seeds plus the edges, then the _rng_ln checks;
+# exits 1 on any violation.
+fn main(): i64 {
     alloc_init();
-    fuzz_main("test", 4);
-    println("fuzz: ok");
+    # 100k seeds from a splitmix-style walk (covers negative and huge i64), plus
+    # the edges: 0, +-1, i64 min and max.
+    var s = 0x9E3779B97F4A7C15;
+    var n = 0;
+    while (n < 100000) {
+        s = s + 0x9E3779B97F4A7C15;
+        fuzz_main(s ^ (s >> 29));
+        n = n + 1;
+    }
+    fuzz_main(0);
+    fuzz_main(1);
+    fuzz_main(0 - 1);
+    fuzz_main(0x7FFFFFFFFFFFFFFF);
+    fuzz_main(0 - 0x7FFFFFFFFFFFFFFF - 1);
+
+    # _rng_ln: monotone across adjacent doubles in (0,1), exact at 2^-k.
+    rng_seed(7);
+    n = 0;
+    while (n < 20000) {
+        var x = f64_mul(f64_from((rng_u64() >> 11) | 1), 0x3CA0000000000000);
+        _fz_check(f64_gt(_rng_ln(x), _rng_ln(x + 1)) == 0, "FAIL: _rng_ln not monotone");
+        _fz_check(f64_lt(_rng_ln(x), 0) == 1, "FAIL: _rng_ln(x) >= 0 for x < 1");
+        n = n + 1;
+    }
+    var k = 1;
+    while (k <= 104) {
+        var want = f64_mul(f64_from(0 - k), 0x3FE62E42FEFA39EF);    # -k ln2_hi, exact
+        var got = _rng_ln((1023 - k) << 52);
+        var d = got - want;
+        if (d < 0) { d = 0 - d; }
+        _fz_check(d <= 1, "FAIL: _rng_ln(2^-k) not within 1 ulp of -k ln 2");
+        k = k + 1;
+    }
+
+    if (_fz_fail != 0) {
+        println("fuzz: FAILED");
+        return 1;
+    }
+    println("fuzz: ok (100005 seeds, 20000 ln pairs, 104 powers of two)");
     return 0;
 }
 

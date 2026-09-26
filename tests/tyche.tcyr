@@ -1,5 +1,13 @@
-# tyche test suite — statistical validation of the deterministic PRNG.
+# tyche test suite — the exact stream (known answers) and its statistics.
 # Stdlib auto-included via cyrius.cyml; f64_* are compiler builtins.
+#
+# The known-answer vectors come from scripts/kat_reference.py, a reference
+# implementation written from the algorithms (splitmix64, xorshift64 13/7/17,
+# top-53-bit uniform, Marsaglia polar, and an operation-for-operation port of
+# _rng_ln), not from tyche's own output. Every _rng_ln and normal vector here is
+# also the correctly rounded value. They pin the reproducibility contract: the
+# same seed gives the same bits on every target. `cyrius tests --aarch64` runs
+# this file too.
 include "src/rng.cyr"
 
 # |x - target| < tol   (all f64 bit patterns)
@@ -7,8 +15,82 @@ fn _near(x, target, tol): i64 {
     return f64_lt(f64_abs(f64_sub(x, target)), tol);
 }
 
+# Runs every group below; exits with the number of failed assertions.
 fn main() {
     alloc_init();
+
+    # ---- known answers: the unseeded stream (must run before any rng_seed) ----
+    test_group("known answers: unseeded stream");
+    assert_eq(_rng_state, 88172645463325252, "documented initial _rng_state");
+    assert_eq(rng_u64(), 0x79690975FBDE15B0, "unseeded u64[0]");
+    assert_eq(rng_u64(), 0x2A337357AE2CC59B, "unseeded u64[1]");
+    assert_eq(rng_u64(), 0x2FEF107A27529AD0, "unseeded u64[2]");
+
+    # ---- known answers: splitmix64 finalizer + xorshift64, edge seeds ----
+    test_group("known answers: seed finalizer and u64 stream");
+    rng_seed(0);
+    assert_eq(_rng_state, 0xE220A8397B1DCDAF, "seed 0 state");
+    assert_eq(rng_u64(), 0x6661260E8CC57DF4, "seed 0 u64[0]");
+    assert_eq(rng_u64(), 0x2ED7A8031B230A0F, "seed 0 u64[1]");
+    assert_eq(rng_u64(), 0x13830DDDEB202FDB, "seed 0 u64[2]");
+    rng_seed(1);
+    assert_eq(_rng_state, 0x910A2DEC89025CC1, "seed 1 state");
+    assert_eq(rng_u64(), 0x7274658BCB6F4838, "seed 1 u64[0]");
+    rng_seed(42);
+    assert_eq(_rng_state, 0xBDD732262FEB6E95, "seed 42 state");
+    assert_eq(rng_u64(), 0xFB4D394F8EADBD08, "seed 42 u64[0]");
+    assert_eq(rng_u64(), 0x5ECA1BF6459AA472, "seed 42 u64[1]");
+    rng_seed(0 - 1);
+    assert_eq(_rng_state, 0xE4D971771B652C20, "seed -1 state");
+    assert_eq(rng_u64(), 0x311D6E06556CEE78, "seed -1 u64[0]");
+    rng_seed(0 - 0x7FFFFFFFFFFFFFFF - 1);
+    assert_eq(_rng_state, 0x481EC0A212A9F3DB, "seed i64 min state");
+    assert_eq(rng_u64(), 0xBECF12E4AF7336FC, "seed i64 min u64[0]");
+    rng_seed(0x7FFFFFFFFFFFFFFF);
+    assert_eq(_rng_state, 0x2A67D7552E039EA7, "seed i64 max state");
+    assert_eq(rng_u64(), 0x01CC86A9D7D8D05A, "seed i64 max u64[0]");
+
+    # ---- known answers: uniform and normal bit patterns ----
+    test_group("known answers: uniform and normal");
+    rng_seed(12345);
+    assert_eq(rng_uniform(), 0x3FD5B9AFEA7E7D36, "seed 12345 uniform[0]");
+    assert_eq(rng_uniform(), 0x3FE9E7A7E2A53536, "seed 12345 uniform[1]");
+    assert_eq(rng_uniform(), 0x3FC1134D42F3756C, "seed 12345 uniform[2]");
+    rng_seed(777);
+    assert_eq(rng_normal(), 0x3FE19910C310B5A5, "seed 777 normal[0]");
+    assert_eq(rng_normal(), 0x3FFBC8466CD34F23, "seed 777 normal[1]");
+    assert_eq(rng_normal(), 0xBFB608A6D894CF98, "seed 777 normal[2]");
+    assert_eq(rng_normal(), 0xBFDBEFC5FF36F2A0, "seed 777 normal[3]");
+    # 1.1.0 guard: this draw was 0xBFCCCCC0F6181DDC through 1.0.3 on x86_64, where
+    # f64_ln (x87) misrounds its ln(s). Any return to a target's f64_ln shows here.
+    rng_seed(1481);
+    rng_normal();
+    rng_normal();
+    assert_eq(rng_normal(), 0xBFCCCCC0F6181DDB, "seed 1481 normal[2] uses tyche's own ln");
+
+    # ---- _rng_ln: correctly rounded at fixed points ----
+    test_group("_rng_ln known answers");
+    assert_eq(_rng_ln(0x3FE0000000000000), 0xBFE62E42FEFA39EF, "ln(0.5) = -ln 2");
+    assert_eq(_rng_ln(0x3FD0000000000000), 0xBFF62E42FEFA39EF, "ln(0.25) = -2 ln 2");
+    assert_eq(_rng_ln(0x3FF0000000000000), 0, "ln(1) = +0");
+    assert_eq(_rng_ln(0x3970000000000000), 0xC05205966F2B4F12, "ln(2^-104), rng_normal's smallest s");
+    assert_eq(_rng_ln(0x3FB999999999999A), 0xC0026BB1BBB55515, "ln(0.1)");
+    assert_eq(_rng_ln(0x3FEFFFFFFFFFFFFF), 0xBCA0000000000000, "ln(1 - 2^-53)");
+    assert_eq(_rng_ln(0x3FEFFFFFFFFFFFFE), 0xBCB0000000000001, "ln(1 - 2^-52)");
+    # The m = sqrt(2) reduction boundary, where aarch64's f64_ln polyfill is ~200 ulp off.
+    assert_eq(_rng_ln(0x3FF6A09E667F3AAF), 0x3FD62E42FEFA36C8, "ln(1.41421356237303)");
+    assert_eq(_rng_ln(0x3FE6A11048957910), 0xBFD62D00E5EEFBB5, "ln(0.70716108490504)");
+
+    # ---- checkpoint: _rng_state is the whole stream state (the api.md exception) ----
+    test_group("checkpoint via _rng_state");
+    rng_seed(2026);
+    rng_normal();
+    var saved = _rng_state;
+    var c0 = rng_normal(); var c1 = rng_uniform(); var c2 = rng_u64();
+    _rng_state = saved;
+    assert_eq(rng_normal(), c0, "restored state replays rng_normal");
+    assert_eq(rng_uniform(), c1, "restored state replays rng_uniform");
+    assert_eq(rng_u64(), c2, "restored state replays rng_u64");
 
     # ---- determinism: same seed reproduces the exact u64 stream ----
     test_group("determinism");

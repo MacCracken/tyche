@@ -3,6 +3,7 @@
 
 include "lib/syscalls.cyr"
 
+# No-op [build].test entry; the real suite is tests/tyche.tcyr.
 fn main() {
     return 0;
 }

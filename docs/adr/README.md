@@ -19,4 +19,4 @@ Decisions about tyche — what we chose, the context, and the consequences we ac
 
 ## Index
 
-_No ADRs yet. Add the first as `0001-kebab-case-title.md`._
+- [0001 — rng_normal uses its own portable ln](0001-rng-normal-uses-its-own-portable-ln.md) — Accepted, 2026-09-25 (1.1.0)

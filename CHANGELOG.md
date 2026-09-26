@@ -4,6 +4,90 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-25
+
+The audit release: a full sweep of tyche, recorded in
+[`docs/audit/2026-09-25-audit.md`](docs/audit/2026-09-25-audit.md). Its one
+behavior change makes `rng_normal` keep the frozen API's cross-platform promise.
+
+### Breaking
+
+- **`rng_normal` gives the same bits on every target, which moves 0.011% of
+  x86_64 draws by 1–3 ulp.** Through 1.0.3 it called the `f64_ln` builtin, which
+  cyrius lowers to x87 `fyl2x` on x86_64 but to a software polyfill on aarch64
+  that is up to 213 ulp off. About a third of aarch64 normal draws differed from
+  x86_64 in their low bits, against `docs/api.md`'s "bit-exact across
+  platforms". `rng_normal` now uses tyche's own logarithm, `_rng_ln` (internal),
+  built from basic IEEE operations in double-double arithmetic. It was the
+  correctly rounded value on 9,999,999 of 10,000,000 draws checked; the other is
+  a hard case 2^-74 from a rounding midpoint. The stream is identical on x86_64
+  and aarch64 across 10,000,000 consecutive draws, and
+  `scripts/kat_reference.py` reproduces it with an operation-for-operation port.
+  - **x86_64:** 1,081 of 10,000,000 draws change: 959 by 1 ulp, 121 by 2, one
+    by 3. Each is a draw where x87 misrounded `ln(s)`, checked against a
+    correctly rounded reference over all 10,000,000; the other 99.989% are
+    bit-identical to 1.0.3.
+  - **aarch64:** now produces the x86_64 stream.
+  - **Unchanged, bit for bit:** `rng_seed`, `rng_u64`, `rng_uniform`, `_rng_state`.
+
+  **Migration:** none, unless you compare against `rng_normal` output saved from
+  1.0.3 or earlier. The consumers' suites do not: the seven that call tyche give
+  identical results against 1.1.0 and 1.0.1 (agnostic makes no call). To
+  bit-reproduce an old x86_64 run, pin `tag = "1.0.3"`.
+
+### Changed
+
+- **`rng_normal` costs 347 ns per draw, up from 92 ns** (x86_64; see
+  [`docs/benchmarks.md`](docs/benchmarks.md)). The portable logarithm is about
+  220 double-double operations. A cheaper < 1 ulp logarithm (fdlibm's,
+  which misrounds 7.3% of these inputs) would have moved roughly 3–4% of x86_64
+  draws instead of 0.011%, and stream stability won. `rng_seed` / `rng_u64` / `rng_uniform` are unchanged at 6 / 4 / 7 ns.
+- `rng_uniform` multiplies by 2^-53 instead of dividing by 2^53: identical bits,
+  since both steps are exact. The internal helper `_f64_2p53` is removed; no
+  consumer referenced it.
+
+### Added
+
+- **Known-answer tests.** 39 exact-bit assertions: the unseeded stream, the seed
+  finalizer at 0 / ±1 / the i64 extremes, `rng_u64` / `rng_uniform` /
+  `rng_normal` / `_rng_ln` vectors, a guard vector (seed 1481, draw 2) that fails
+  if `f64_ln` comes back, and the `_rng_state` checkpoint contract. The suite
+  goes from 10 to **49 assertions**. The vectors come from
+  `scripts/kat_reference.py`, an independent reference written from the
+  algorithms. Mutation-checked: restoring `f64_ln`, perturbing the shift triple
+  and perturbing a splitmix constant each fail it, on both targets.
+- **aarch64 CI leg.** The suite and the fuzz harness run under qemu-user on
+  every push, and the job fails rather than skips when the cross-compiler or
+  qemu is missing.
+- **Fuzz harness** (was a stub): properties over 100,005 seeds — the state is
+  never 0, no `rng_u64` output is 0, uniforms lie in [0,1), normals are finite
+  with |x| ≤ 12.01, re-seeding replays — plus `_rng_ln` monotonicity and
+  powers of two.
+- **Benchmarks** (measured a no-op): every entry point, with results in
+  [`docs/benchmarks.md`](docs/benchmarks.md).
+- [`docs/audit/2026-09-25-audit.md`](docs/audit/2026-09-25-audit.md),
+  [`scripts/kat_reference.py`](scripts/kat_reference.py), and the first ADR,
+  [`docs/adr/0001-rng-normal-uses-its-own-portable-ln.md`](docs/adr/0001-rng-normal-uses-its-own-portable-ln.md),
+  which records the alternatives and their costs.
+
+### Fixed
+
+- **Docs that had gone stale or were never filled in:** the README dependency
+  snippet (`tag = "0.1.0"`); `SECURITY.md`'s version and "pre-1.0, not audited";
+  `CONTRIBUTING.md`, which said there was no reference oracle and listed
+  `f64_ln` among the builtins to use; the getting-started guide and roadmap
+  (both still scaffold text); `CLAUDE.md`'s identity and goal placeholders; and
+  `docs/api.md`'s determinism note, which now says how it holds, and the
+  unseeded state.
+
+### Upstream
+
+- Filed cyrius
+  `docs/development/issues/2026-09-25-tyche-aarch64-f64-ln-polyfill-specials-and-accuracy.md`:
+  on aarch64, `f64_ln` / `f64_log2` return finite values for 0, ±inf, NaN and
+  subnormals, and the ln / exp polyfills miss their stated accuracy (up to
+  213 / 2,313 ulp). tyche no longer depends on the fix.
+
 ## [1.0.3] - 2026-09-25
 
 ### Changed

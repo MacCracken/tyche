@@ -8,7 +8,7 @@
 
 ## Project Identity
 
-**tyche** — tyche — TODO
+**tyche** — sovereign deterministic statistical PRNG (xorshift64). NOT a CSPRNG.
 
 - **Type**: Binary
 - **License**: GPL-3.0-only
@@ -18,7 +18,7 @@
 
 ## Goal
 
-_TODO: one-or-two-sentence mission statement. What does tyche OWN in the stack? Durable — doesn't change per release._
+tyche owns reproducible-by-seed statistical randomness for AGNOS: one seed gives the same bits on every target, for simulation, ML initialization, Monte Carlo and dropout. It never owns cryptographic randomness — keys, nonces and tokens belong to sigil.
 
 ## Current State
 
@@ -38,6 +38,7 @@ Project was scaffolded with `cyrius init` (greenfield) or `cyrius port` (Rust �
 cyrius deps                          # resolve sibling deps
 cyrius build src/main.cyr build/tyche
 cyrius test                          # run [build].test + tests/*.tcyr
+cyrius tests --aarch64               # the same suite under qemu-aarch64 (the contract is cross-target)
 ```
 
 ## Key Principles
@@ -59,6 +60,7 @@ cyrius test                          # run [build].test + tests/*.tcyr
 - Do not use `sys_system()` with unsanitized input — command injection
 - Do not trust external data (file / network / args) without validation
 - Do not modify `lib/` files (vendored stdlib / dep symlinks)
+- Do not use a transcendental f64 builtin (`f64_ln`, `f64_exp`, `f64_log2`, `f64_sin`, `f64_cos`, …) on a stream path — cyrius lowers them differently per target, so the bits differ; only `f64_add`/`sub`/`mul`/`div`/`sqrt` are correctly rounded everywhere (see CONTRIBUTING.md *Numeric rules*)
 - Do not hardcode toolchain versions in CI YAML — `cyrius = "X.Y.Z"` in `cyrius.cyml` is the source of truth
 
 ## Documentation

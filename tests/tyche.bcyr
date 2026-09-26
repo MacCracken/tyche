@@ -1,21 +1,55 @@
-# tyche benchmarks
-# Stdlib auto-included via cyrius.cyml
+# tyche benchmarks — every public entry point, plus _rng_ln (rng_normal's cost).
+# Stdlib auto-included via cyrius.cyml.
 #
 # Pattern: bench_new -> bench_batch_start -> tight loop -> bench_batch_stop -> bench_report.
-# For sub-1us ops use batch_size >= 1000 to amortize clock_gettime overhead
-# (~240 ns per start/stop pair on x86_64 Linux). See lib/bench.cyr header for
-# the full overhead-vs-batching guidance.
+# Each loop is batched so the clock read (measured and subtracted by lib/bench.cyr)
+# is amortised over the whole batch. Results feed docs/benchmarks.md.
+include "src/rng.cyr"
 
-fn bench_noop(): i64 { return 0; }
-
+# One batched benchmark per entry point, then _rng_ln alone.
 fn main(): i64 {
     alloc_init();
-    var b = bench_new("noop");
-    bench_batch_start(b);
+    rng_seed(42);
+
+    var b1 = bench_new("rng_seed");
+    bench_batch_start(b1);
     var i = 0;
-    while (i < 1000000) { bench_noop(); i = i + 1; }
-    bench_batch_stop(b, 1000000);
-    bench_report(b);
+    while (i < 1000000) { rng_seed(i); i = i + 1; }
+    bench_batch_stop(b1, 1000000);
+    bench_report(b1);
+
+    var b2 = bench_new("rng_u64");
+    bench_batch_start(b2);
+    i = 0;
+    while (i < 1000000) { rng_u64(); i = i + 1; }
+    bench_batch_stop(b2, 1000000);
+    bench_report(b2);
+
+    var b3 = bench_new("rng_uniform");
+    bench_batch_start(b3);
+    i = 0;
+    while (i < 1000000) { rng_uniform(); i = i + 1; }
+    bench_batch_stop(b3, 1000000);
+    bench_report(b3);
+
+    var b4 = bench_new("rng_normal");
+    bench_batch_start(b4);
+    i = 0;
+    while (i < 1000000) { rng_normal(); i = i + 1; }
+    bench_batch_stop(b4, 1000000);
+    bench_report(b4);
+
+    # _rng_ln alone, on a fixed spread of s in (0,1) built outside the loop.
+    var xs[64];
+    var j = 0;
+    while (j < 8) { store64(&xs + 8 * j, rng_uniform()); j = j + 1; }
+    var b5 = bench_new("_rng_ln");
+    bench_batch_start(b5);
+    i = 0;
+    while (i < 1000000) { _rng_ln(load64(&xs + 8 * (i & 7))); i = i + 1; }
+    bench_batch_stop(b5, 1000000);
+    bench_report(b5);
+
     return 0;
 }
 

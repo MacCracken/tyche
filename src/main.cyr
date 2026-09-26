@@ -3,6 +3,8 @@
 # this main is excluded from dist/tyche.cyr on purpose.
 include "src/rng.cyr"
 
+# Smoke demo: prints the not-a-CSPRNG notice and checks determinism and seed
+# sensitivity; exits 1 if either is broken.
 fn main() {
     alloc_init();
     println("tyche — deterministic statistical PRNG (NOT a CSPRNG; use sigil for crypto)");
