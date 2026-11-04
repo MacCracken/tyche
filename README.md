@@ -41,7 +41,7 @@ introduce per-stream handles so reproducibility survives across threads.
 ```toml
 [deps.tyche]
 git = "https://github.com/MacCracken/tyche"
-tag = "1.1.0"
+tag = "1.1.1"
 modules = ["dist/tyche.cyr"]
 ```
 

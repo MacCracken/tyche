@@ -4,6 +4,55 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-03
+
+### Changed
+
+- **Toolchain `6.6.6` → `6.6.20`** (through 6.6.7–6.6.19). No source change, and
+  the stream did not move. A golden dump of raw bit patterns is byte-identical
+  between 1.1.0 @ 6.6.6 and 1.1.1 @ 6.6.20, on x86_64 and on aarch64 (qemu),
+  and the two targets match each other. The dump covers the unseeded stream; 10
+  seeds (0, ±1, 2, 42, 1481, 123456789, 0xDEADBEEF and the i64 extremes), each
+  with its state and 8 draws of `rng_u64` / `rng_uniform` / `rng_normal`; and
+  one 1M-draw digest per entry point, 512 lines in all. **49 assertions** pass
+  on both targets, the fuzz harness passes on both, and fmt and lint are clean.
+  Benchmarks did not move: three runs of each toolchain on the same host give
+  the same medians (see [`docs/benchmarks.md`](docs/benchmarks.md)). The DCE
+  smoke binary grows from 16,360 to 23,768 B, all of it from the stdlib.
+
+  Upstream changes that reach tyche:
+  - **6.6.18:** on aarch64, a syscall with a literal number skips the
+    translation chain. tyche's aarch64 binaries get different syscall code,
+    and the qemu runs pass.
+  - **6.6.13:** `cyrlint` measures line length in code points, not bytes. The
+    NOT-A-CSPRNG banner in `src/rng.cyr` no longer warns, so CI's tolerance
+    for the "exceeds 120 characters" warning now matches nothing. It is kept.
+  - **6.6.13:** `f64_le`, `f64_ge` and `f64_trunc` became reserved builtins.
+    tyche neither defines nor calls them.
+  - **6.6.7:** fixed the aarch64 `f64_ln` / `f64_exp` accuracy that tyche
+    reported upstream. Upstream still does not promise the same bits from the
+    builtin on every target, so `_rng_ln` stays.
+- **Vendored `lib/` re-synced** (`cyrius lib sync --full`). It byte-matches the
+  6.6.20 snapshot, 113 files. New are `poison.cyr` (6.6.18's allocator seam
+  for `cyrius fuzz --poison`) and `tls_hostid.cyr` (6.6.13's TLS host
+  classifier). The snapshot dropped nothing, so there was nothing to prune.
+- **`cyrius.lock` regenerated**: 113 files, and `cyrius deps --verify` is clean.
+  At 6.6.20, `lib sync --full` writes the lock itself; a `cyrius deps --lock`
+  afterwards left it unchanged.
+- **`dist/tyche.deps` is removed.** From 6.6.18, `cyrius distlib` publishes a
+  sidecar only for the stdlib leaves the bundle provably needs (compile-verified),
+  not the producer's whole `[deps] stdlib` list. tyche's library has needed none
+  since 1.1.0, so distlib now deletes the sidecar instead of writing out the ten
+  test and bench leaves. This settles the 1.1.0 audit's observation that the
+  sidecar over-reported. `dist/tyche.cyr` changes only in its version line.
+
+  **Consumers:** a build that used `string`, `fmt`, `alloc`, `io`, `vec`, `str`,
+  `syscalls`, `assert`, `bench` or `math` only because tyche's sidecar brought
+  it in must now declare that leaf in its own `[deps] stdlib`. cyrius 6.6.18 and
+  later name the leaf to add when such a build fails. All seven direct
+  consumers already declare all ten, checked in their manifests on 2026-11-03,
+  so none is affected.
+
 ## [1.1.0] - 2026-09-25
 
 The audit release: a full sweep of tyche, recorded in

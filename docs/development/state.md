@@ -5,6 +5,11 @@
 
 ## Version
 
+**1.1.1** (2026-11-03) — toolchain bump to cyrius 6.6.20. No source change, and
+the stream is bit-identical to 1.1.0 on x86_64 and aarch64. `dist/tyche.deps` is
+gone: cyrius 6.6.18+ publishes only the stdlib leaves a bundle needs, and the
+library needs none.
+
 **1.1.0** (2026-09-25) — the audit release. `rng_normal` is now bit-identical on
 every target: it uses tyche's own logarithm (`_rng_ln`, correctly rounded on
 9,999,999 of 10,000,000 draws checked) instead of the `f64_ln` builtin, which is
@@ -26,15 +31,21 @@ comes); bit-exact determinism across targets; **statistical, NOT cryptographic**
 
 ## Toolchain
 
-- **Cyrius pin**: `6.6.6` (in `cyrius.cyml [package].cyrius`)
+- **Cyrius pin**: `6.6.20` (in `cyrius.cyml [package].cyrius`)
 
-**Pin bumped `6.6.2` → `6.6.6` 2026-09-25 (1.0.3).** `lib/` byte-matches the 6.6.6
-snapshot (111 files) and `cyrius.lock` covers all of them (`cyrius deps --verify`
-clean). A pin bump here is three steps, not one: `cyrius lib sync --full`; delete
-any `lib/` file the new snapshot no longer ships (`diff -rq lib
-~/.cyrius/versions/<pin>/lib` — `lib sync` does not prune); then `cyrius deps
---lock`, because plain `cyrius deps` resolves no `[deps.NAME]` for tyche and so
-never rewrites the lock. 1.0.1 and 1.0.2 each skipped part of this.
+**Pin bumped `6.6.6` → `6.6.20` 2026-11-03 (1.1.1).** `lib/` byte-matches the
+6.6.20 snapshot (113 files) and `cyrius.lock` covers all of them (`cyrius deps
+--verify`: 113 verified, 0 failed). A pin bump here takes these steps:
+
+1. `cyrius lib sync --full`. At 6.6.20 it also rewrites `cyrius.lock`.
+2. Delete any `lib/` file the new snapshot no longer ships (`diff -rq lib
+   ~/.cyrius/versions/<pin>/lib`), because `lib sync` does not prune.
+3. `cyrius deps --lock`, then `cyrius deps --verify`. Plain `cyrius deps`
+   resolves no `[deps.NAME]` for tyche, so it never rewrites the lock.
+4. `cyrius distlib`, and commit whatever it changes under `dist/`. The CI drift
+   gate fails otherwise.
+
+1.0.1 and 1.0.2 each skipped part of this.
 
 ## Source
 
@@ -68,21 +79,27 @@ Direct (declared in `cyrius.cyml`):
 - stdlib — string, fmt, alloc, io, vec, str, syscalls, assert, bench, math
 
 No `[deps.NAME]` git deps. Since 1.1.0 the library itself needs none of the
-declared stdlib: the list serves the tests, benchmarks and smoke demo, and
-`dist/tyche.deps` passes it on to consumers unchanged.
+declared stdlib. The list serves only the tests, benchmarks and smoke demo.
+Since 1.1.1 nothing passes it on to consumers: cyrius 6.6.18's `distlib`
+publishes a `.deps` sidecar only for the leaves the bundle needs, so tyche
+ships no `dist/tyche.deps`.
 
 ## Consumers
 
-Eight, all on `[deps.tyche] tag = "1.0.1"` (surveyed 2026-09-25; none on 1.0.2
-or later yet): agnosai, agnostic, amuzesh, attn11, prajna, rosnet, tarka, tentib.
-Seven of them have suites that call tyche, and each gives the same result with
-1.1.0 as with 1.0.1 under its pinned cyrius 6.6.2. agnosai's one failing
-assertion (`sandbox_spawn.tcyr`, unrelated) fails identically with both.
-agnostic makes no `rng_*` call.
+Seven declare `[deps.tyche]` (surveyed 2026-11-03). agnosai pins `tag = "1.1.0"`.
+amuzesh, attn11, prajna, rosnet, tarka and tentib pin `tag = "1.0.1"`. agnostic
+used to declare tyche, but that block never took effect; it gets tyche through
+agnosai and makes no `rng_*` call. Every direct consumer declares all ten
+stdlib leaves the old `dist/tyche.deps` listed, so dropping the sidecar in
+1.1.1 changes nothing for them (checked in their manifests; their suites were
+not re-run). At 1.1.0, all seven suites that call tyche gave the same result
+as with 1.0.1, under their pinned cyrius 6.6.2. agnosai's one failing assertion
+(`sandbox_spawn.tcyr`, unrelated) failed identically with both.
 
 ## Known trade-offs
 
-- **`rng_normal` is 3.8× slower** than at 1.0.3 (347 ns against 92 ns), the price
+- **`rng_normal` is 3.8× slower** than at 1.0.3 (347 ns against 92 ns; 358 ns
+  on the same host at 1.1.1, identical under 6.6.6 and 6.6.20), the price
   of a near-correctly-rounded logarithm from basic ops. Options are costed in
   [`../benchmarks.md`](../benchmarks.md); a faster `_rng_ln` must keep identical
   bits.
@@ -91,7 +108,9 @@ agnostic makes no `rng_*` call.
 
 - cyrius `docs/development/issues/2026-09-25-tyche-aarch64-f64-ln-polyfill-specials-and-accuracy.md`
   — aarch64 `f64_ln` / `f64_log2` / `f64_exp`: wrong IEEE special values, and up
-  to 213 / 92 / 2,313 ulp of error. tyche no longer depends on the fix.
+  to 213 / 92 / 2,313 ulp of error. Fixed in 6.6.7, but upstream still does not
+  promise the same bits from the builtin on every target. tyche no longer
+  depends on the fix and keeps `_rng_ln`.
 
 ## Next
 

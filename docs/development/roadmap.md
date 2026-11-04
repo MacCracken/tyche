@@ -29,11 +29,14 @@ three criteria and the exact-stream tests were only met in the 1.1.0 audit.
 - **1.1.0** (2026-09-25) — full audit. `rng_normal` made bit-identical across
   targets with tyche's own portable `ln`; exact-bit test vectors, an
   aarch64 CI leg, real benchmarks and fuzzing.
+- **1.1.1** (2026-11-03) — toolchain pin 6.6.20; stream bit-identical. The
+  `dist/tyche.deps` sidecar is dropped.
 
 ## Next (unscheduled)
 
-- **Consumers onto 1.1.0.** All eight pin `tag = "1.0.1"`; see
-  [`state.md`](state.md). Nothing in their suites changes (checked for seven).
+- **Consumers onto 1.1.x.** agnosai pins `1.1.0`; the other six direct
+  consumers still pin `1.0.1`. See [`state.md`](state.md). Nothing in their
+  suites changes (checked for seven at 1.1.0).
 - **Per-stream handles** — the SMP-arc unwind point flagged in `src/rng.cyr` and
   `docs/api.md`: a seeded state passed explicitly, so reproducibility survives
   threads. Additive; the four frozen functions stay as they are. Gate: the SMP

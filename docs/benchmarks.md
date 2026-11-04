@@ -14,6 +14,11 @@ and subtracts it. Numbers are the median of three runs.
 | `rng_normal` | 92 ns | 347 ns | ×3.8, all of it `_rng_ln` |
 | `_rng_ln` | — | 283 ns | internal; new in 1.1.0 |
 
+**Re-measured at 1.1.1** (2026-11-03, same host on Linux 7.2.11): cyrius 6.6.6
+and 6.6.20 give identical medians, 6 / 4 / 7 / 358 / 292 ns. The toolchain did
+not move the numbers. `rng_normal` and `_rng_ln` now read about 3% above the
+table on both toolchains, so the difference comes from the host.
+
 ## Why `rng_normal` got slower
 
 Through 1.0.3 its logarithm was one x87 instruction on x86_64 (`f64_ln` →
