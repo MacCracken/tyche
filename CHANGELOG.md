@@ -4,6 +4,41 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-04
+
+### Changed
+
+- **Toolchain `6.7.9` → `6.7.18`** (through 6.7.10–6.7.17), the latest cyrius
+  release. `src/` is unchanged, and the stream did not move. The golden dump
+  is byte-identical between 1.2.0 @ 6.7.9 and 1.2.1 @ 6.7.18, on x86_64 and
+  on aarch64 (qemu), and the two targets match each other. That dump covers
+  the unseeded stream, 10 edge seeds and a 1M-draw digest per entry point.
+  **49 assertions** pass on both targets, the fuzz harness passes on both, and
+  fmt and lint are clean. Benchmarks are within 1 ns (medians of three runs per
+  toolchain in one session; see [`docs/benchmarks.md`](docs/benchmarks.md)).
+  The DCE smoke binary shrinks from 23,768 to 19,168 B. tyche's own code did
+  not change, so the saving comes from the stdlib and the toolchain.
+
+  Upstream changes that reach tyche:
+  - **6.7.12 / 6.7.13:** in a project that vendors the whole snapshot, as
+    tyche does, a moved pin makes `cyrius deps`, `cyrius build` and
+    `cyrius deps --lock` exit 1 with `cyrius.lock not re-locked` until
+    `cyrius lib sync --full` runs. The bump procedure in
+    [`docs/development/state.md`](docs/development/state.md) already runs it
+    first. It follows that the pin, `lib/` and `cyrius.lock` must land in one
+    commit, or CI's `cyrius deps` fails.
+  - **6.7.17:** a statement that is only a value builtin (`f64_sqrt(x);`) no
+    longer compiles. tyche has none; its bare statements all call its own
+    functions.
+  - **6.7.11 / 6.7.12:** new `cyrlint` warnings for array overruns and write
+    lengths. None fires on `src/`.
+- **Vendored `lib/` re-synced** (`cyrius lib sync --full`). It byte-matches the
+  6.7.18 snapshot: the same 113 files as 6.7.9, 66 of them with new content.
+  Nothing was added or removed.
+- **`cyrius.lock` regenerated**: 113 files, trailer `cyrius 6.7.18`, and
+  `cyrius deps --verify` is clean.
+- `dist/tyche.cyr` changes only in its version line.
+
 ## [1.2.0] - 2026-11-04
 
 Moves tyche onto the cyrius 6.7 series. No library or API change.

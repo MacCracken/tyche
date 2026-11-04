@@ -23,6 +23,12 @@ table on both toolchains, so the difference comes from the host.
 7 / 356 / 290 ns and 6.7.9 gives 6 / 4 / 7 / 357 / 291 ns, medians of three
 runs each. That 1 ns is within run-to-run noise.
 
+**Re-measured at 1.2.1** (2026-11-04, same host, a later session): cyrius 6.7.9
+gives 6 / 4 / 7 / 345 / 281 ns and 6.7.18 gives 6 / 4 / 7 / 346 / 282 ns,
+medians of three runs each. The toolchain again moves nothing. The whole
+session ran about 10 ns faster than the 1.2.0 runs, which is host variance
+between sessions: compare toolchains only within one session.
+
 ## Why `rng_normal` got slower
 
 Through 1.0.3 its logarithm was one x87 instruction on x86_64 (`f64_ln` →

@@ -5,6 +5,10 @@
 
 ## Version
 
+**1.2.1** (2026-11-04) — toolchain bump to cyrius 6.7.18, the latest release.
+`src/` is unchanged. The stream is bit-identical to 1.2.0 on x86_64 and
+aarch64, and `dist/tyche.cyr` changes only in its version line.
+
 **1.2.0** (2026-11-04) — toolchain bump to cyrius 6.7.9, tyche's first 6.7-series
 pin. `src/` is unchanged. The stream is bit-identical to 1.1.1 on x86_64 and
 aarch64, and `dist/tyche.cyr` changes only in its version line. Tests now run
@@ -37,20 +41,26 @@ comes); bit-exact determinism across targets; **statistical, NOT cryptographic**
 
 ## Toolchain
 
-- **Cyrius pin**: `6.7.9` (in `cyrius.cyml [package].cyrius`)
+- **Cyrius pin**: `6.7.18` (in `cyrius.cyml [package].cyrius`)
 
-**Pin bumped `6.6.20` → `6.7.9` 2026-11-04 (1.2.0)**, after `6.6.6` → `6.6.20`
-on 2026-11-03 (1.1.1). `lib/` byte-matches the 6.7.9 snapshot (113 files) and
+**Pin bumped `6.7.9` → `6.7.18` 2026-11-04 (1.2.1)**, after `6.6.20` → `6.7.9`
+earlier that day (1.2.0) and `6.6.6` → `6.6.20` on 2026-11-03 (1.1.1). `lib/`
+byte-matches the 6.7.18 snapshot (113 files) and
 `cyrius.lock` covers all of them (`cyrius deps --verify`: 113 verified, 0
 failed). A pin bump here takes these steps:
 
-1. `cyrius lib sync --full`. Since 6.6.20 it also rewrites `cyrius.lock`.
+1. `cyrius lib sync --full`, before any other cyrius command at the new pin.
+   Since 6.6.20 it also rewrites `cyrius.lock`. From 6.7.12, `cyrius deps`,
+   `cyrius build` and `cyrius deps --lock` exit 1 (`cyrius.lock not
+   re-locked`) until `lib/` matches the new pin's snapshot.
 2. Delete any `lib/` file the new snapshot no longer ships (`diff -rq lib
    ~/.cyrius/versions/<pin>/lib`), because `lib sync` does not prune.
 3. `cyrius deps --lock`, then `cyrius deps --verify`. Plain `cyrius deps`
    resolves no `[deps.NAME]` for tyche, so it never rewrites the lock.
 4. `cyrius distlib`, and commit whatever it changes under `dist/`. The CI drift
    gate fails otherwise.
+5. Commit the pin, `lib/` and `cyrius.lock` together. If CI sees the new pin
+   with the old `lib/`, its `cyrius deps` fails.
 
 1.0.1 and 1.0.2 each skipped part of this.
 
@@ -93,7 +103,7 @@ ships no `dist/tyche.deps`.
 
 ## Consumers
 
-Seven declare `[deps.tyche]` (surveyed 2026-11-03; unchanged on 2026-11-04). agnosai pins `tag = "1.1.0"`.
+Seven declare `[deps.tyche]` (surveyed 2026-11-03; unchanged at 1.2.0 and 1.2.1). agnosai pins `tag = "1.1.0"`.
 amuzesh, attn11, prajna, rosnet, tarka and tentib pin `tag = "1.0.1"`. agnostic
 used to declare tyche, but that block never took effect; it gets tyche through
 agnosai and makes no `rng_*` call. Every direct consumer declares all ten
@@ -106,8 +116,8 @@ as with 1.0.1, under their pinned cyrius 6.6.2. agnosai's one failing assertion
 ## Known trade-offs
 
 - **`rng_normal` is 3.8× slower** than at 1.0.3 (347 ns against 92 ns; 358 ns
-  on the same host at 1.1.1, identical under 6.6.6 and 6.6.20; 357 ns at 1.2.0
-  under 6.7.9), the price
+  on the same host at 1.1.1, identical under 6.6.6 and 6.6.20; 345–358 ns
+  through 1.2.1, moving with the host session rather than the toolchain), the price
   of a near-correctly-rounded logarithm from basic ops. Options are costed in
   [`../benchmarks.md`](../benchmarks.md); a faster `_rng_ln` must keep identical
   bits.
