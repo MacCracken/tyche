@@ -5,13 +5,13 @@
 ```sh
 cyrius deps                              # resolve dependencies
 cyrius build src/main.cyr build/tyche    # compile the smoke demo
-cyrius tests                             # known-answer + statistical suite
-cyrius tests --aarch64                   # the same suite under qemu-aarch64
+cyrius test tests                        # known-answer + statistical suite
+cyrius test tests --aarch64              # the same suite under qemu-aarch64
 CYRIUS_DCE=1 cyrius bench tests/tyche.bcyr
 cyrius distlib                           # regenerate dist/tyche.cyr
 ```
 
-`cyrius tests --aarch64` needs `qemu-aarch64` (Debian/Ubuntu: `qemu-user`). CI
+`cyrius test tests --aarch64` needs `qemu-aarch64` (Debian/Ubuntu: `qemu-user`). CI
 runs both architectures; a change that passes only on x86_64 is not done.
 
 ## Layout
@@ -33,7 +33,7 @@ runs both architectures; a change that passes only on x86_64 is not done.
 1. Edit `src/rng.cyr`. Keep every f64 operation on a stream path to the
    correctly rounded basics (`f64_add` / `f64_sub` / `f64_mul` / `f64_div` /
    `f64_sqrt`): see *Numeric rules* in [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md).
-2. Run `cyrius tests` and `cyrius tests --aarch64`. If a known-answer vector
+2. Run `cyrius test tests` and `cyrius test tests --aarch64`. If a known-answer vector
    fails, you changed the stream: that is a **Breaking** change, and the new
    vectors come from `scripts/kat_reference.py`, never from tyche's own output.
 3. Benchmark, and update [`../benchmarks.md`](../benchmarks.md) if a number moved.

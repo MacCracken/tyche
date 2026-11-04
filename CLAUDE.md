@@ -38,7 +38,7 @@ Project was scaffolded with `cyrius init` (greenfield) or `cyrius port` (Rust â†
 cyrius deps                          # resolve sibling deps
 cyrius build src/main.cyr build/tyche
 cyrius test                          # run [build].test + tests/*.tcyr
-cyrius tests --aarch64               # the same suite under qemu-aarch64 (the contract is cross-target)
+cyrius test tests --aarch64          # the same suite under qemu-aarch64 (the contract is cross-target)
 ```
 
 ## Key Principles

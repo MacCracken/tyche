@@ -41,7 +41,7 @@ introduce per-stream handles so reproducibility survives across threads.
 ```toml
 [deps.tyche]
 git = "https://github.com/MacCracken/tyche"
-tag = "1.1.1"
+tag = "1.2.0"
 modules = ["dist/tyche.cyr"]
 ```
 
@@ -53,8 +53,8 @@ list supplies the builtins the bundle leaves unresolved.
 ```sh
 cyrius deps                              # resolve stdlib deps
 cyrius build src/main.cyr build/tyche    # compile the smoke demo
-cyrius tests                             # known-answer + statistical suite (tests/*.tcyr)
-cyrius tests --aarch64                   # the same suite under qemu-aarch64
+cyrius test tests                        # known-answer + statistical suite (tests/*.tcyr)
+cyrius test tests --aarch64              # the same suite under qemu-aarch64
 cyrius distlib                           # regenerate dist/tyche.cyr
 ```
 

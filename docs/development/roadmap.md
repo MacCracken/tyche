@@ -31,6 +31,8 @@ three criteria and the exact-stream tests were only met in the 1.1.0 audit.
   aarch64 CI leg, real benchmarks and fuzzing.
 - **1.1.1** (2026-11-03) — toolchain pin 6.6.20; stream bit-identical. The
   `dist/tyche.deps` sidecar is dropped.
+- **1.2.0** (2026-11-04) — toolchain pin 6.7.9, the first 6.7-series pin;
+  stream bit-identical.
 
 ## Next (unscheduled)
 

@@ -19,6 +19,10 @@ and 6.6.20 give identical medians, 6 / 4 / 7 / 358 / 292 ns. The toolchain did
 not move the numbers. `rng_normal` and `_rng_ln` now read about 3% above the
 table on both toolchains, so the difference comes from the host.
 
+**Re-measured at 1.2.0** (2026-11-04, same host): cyrius 6.6.20 gives 6 / 4 /
+7 / 356 / 290 ns and 6.7.9 gives 6 / 4 / 7 / 357 / 291 ns, medians of three
+runs each. That 1 ns is within run-to-run noise.
+
 ## Why `rng_normal` got slower
 
 Through 1.0.3 its logarithm was one x87 instruction on x86_64 (`f64_ln` →

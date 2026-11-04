@@ -4,6 +4,44 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-04
+
+Moves tyche onto the cyrius 6.7 series. No library or API change.
+
+### Changed
+
+- **Toolchain `6.6.20` → `6.7.9`** (through 6.7.0–6.7.8). `src/` is unchanged,
+  and the stream did not move. The 1.1.1 golden dump is byte-identical between
+  1.1.1 @ 6.6.20 and 1.2.0 @ 6.7.9, on x86_64 and on aarch64 (qemu), and the
+  two targets match each other. That dump covers the unseeded stream, 10 edge
+  seeds and a 1M-draw digest per entry point, 512 lines in all. **49
+  assertions** pass on both targets, the fuzz harness passes on both, and fmt
+  and lint are clean. Benchmarks are within 1 ns (medians of three runs per
+  toolchain on the same host; see [`docs/benchmarks.md`](docs/benchmarks.md)).
+  The DCE smoke binary stays at 23,768 B.
+
+  Upstream changes checked against tyche's source:
+  - **6.7.0–6.7.9** reserve `trait`, `const`, `true`, `false`, `do` and `dyn`,
+    and make `!` an operator of its own. tyche's code uses none of them; they
+    appear only in comments and strings.
+  - **6.7.5** adds `>>>=`, the compound form of the arithmetic shift `>>>`.
+    `>>` stays logical, which xorshift relies on, and the known-answer vectors
+    pin it.
+  - **6.7.9** makes unary `-` and `~` on a constant bind tighter. tyche has no
+    unary `-` or `~`, and writes -1 as `0 - 1`.
+- **Tests run as `cyrius test tests`.** cyrius 6.7.6 deprecated `cyrius tests`,
+  which now warns, and 6.7.12 removes it. CI's Tests step, the README,
+  `CONTRIBUTING.md`, the getting-started guide, `CLAUDE.md`'s Quick Start and a
+  comment in `tests/tyche.tcyr` now use `cyrius test tests`. It runs the same
+  suite with the same result on both targets.
+- **Vendored `lib/` re-synced** (`cyrius lib sync --full`). It byte-matches the
+  6.7.9 snapshot: the same 113 files as 6.6.20, 67 of them with new content.
+  Nothing was added or removed.
+- **`cyrius.lock` regenerated**: 113 files, trailer `cyrius 6.7.9`, and
+  `cyrius deps --verify` is clean.
+- `dist/tyche.cyr` changes only in its version line. tyche still ships no
+  `dist/tyche.deps`.
+
 ## [1.1.1] - 2026-11-03
 
 ### Changed

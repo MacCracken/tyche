@@ -72,11 +72,10 @@ jobs:
         run: ./build/tyche
 
       - name: Tests
-        # Plural `cyrius tests` recursively runs tests/*.tcyr — tyche's
-        # statistical suite (tests/tyche.tcyr): determinism, seed sensitivity,
-        # zero fixed-point guard, uniform range + mean, normal mean/variance.
-        # `cyrius test <file>` runs a single program and would NOT reach it.
-        run: cyrius tests
+        # `cyrius test tests` recursively runs tests/*.tcyr: tyche's known-answer
+        # and statistical suite (tests/tyche.tcyr). The plural `cyrius tests`
+        # alias is deprecated from cyrius 6.7.6 and removed at 6.7.12.
+        run: cyrius test tests
 
       - name: Tests + fuzz on aarch64 (qemu-user)
         # The contract is "same seed, same bits on every target", and tests/tyche.tcyr

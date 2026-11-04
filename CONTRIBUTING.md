@@ -8,9 +8,9 @@
 2. `cyrius deps` — resolve stdlib deps into `lib/`.
 3. `cyrius build src/main.cyr build/tyche` — compile the smoke demo (seeds the
    stream, shows determinism, prints the not-a-CSPRNG reminder).
-4. `cyrius tests` — the known-answer + statistical suite (`tests/tyche.tcyr`),
+4. `cyrius test tests` — the known-answer + statistical suite (`tests/tyche.tcyr`),
    the real correctness gate; see below.
-5. `cyrius tests --aarch64` — the same suite under `qemu-aarch64`. This is the
+5. `cyrius test tests --aarch64` — the same suite under `qemu-aarch64`. This is the
    cross-platform half of the contract; CI runs it on every push.
 6. `CYRIUS_DCE=1 cyrius bench tests/tyche.bcyr` — benchmarks for every entry
    point; record changes in [`docs/benchmarks.md`](docs/benchmarks.md).

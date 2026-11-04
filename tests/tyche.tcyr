@@ -6,7 +6,7 @@
 # top-53-bit uniform, Marsaglia polar, and an operation-for-operation port of
 # _rng_ln), not from tyche's own output. Every _rng_ln and normal vector here is
 # also the correctly rounded value. They pin the reproducibility contract: the
-# same seed gives the same bits on every target. `cyrius tests --aarch64` runs
+# same seed gives the same bits on every target. `cyrius test tests --aarch64` runs
 # this file too.
 include "src/rng.cyr"
 
