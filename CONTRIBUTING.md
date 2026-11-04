@@ -13,10 +13,16 @@
 5. `cyrius test tests --aarch64` — the same suite under `qemu-aarch64`. This is the
    cross-platform half of the contract; CI runs it on every push.
 6. `CYRIUS_DCE=1 cyrius bench tests/tyche.bcyr` — benchmarks for every entry
-   point; record changes in [`docs/benchmarks.md`](docs/benchmarks.md).
+   point; record changes in [`docs/benchmarks.md`](docs/benchmarks.md). For a
+   before/after comparison, run `./scripts/bench-history.sh` before and after
+   the change in one session. It appends a median-of-three row per benchmark to
+   `bench-history.csv`.
 7. `CYRIUS_DCE=1 cyrius build tests/tyche.fcyr build/fuzz && ./build/fuzz` —
    property fuzzing over 100k seeds.
-8. `cyrius distlib` — regenerate `dist/tyche.cyr` after touching `src/rng.cyr`
+8. `cyrius fmt <file> --check`, `cyrius lint <file>` and
+   `cyrius vet src/main.cyr`. CI gates on all three, over `src/` and `tests/`,
+   and any lint warning fails the build.
+9. `cyrius distlib` — regenerate `dist/tyche.cyr` after touching `src/rng.cyr`
    (CI has a drift gate that fails if the bundle lags `src/`).
 
 See [`CLAUDE.md`](CLAUDE.md) for the full development loop and
@@ -37,9 +43,11 @@ modified generator path is incomplete until the suite covers both:
 - **Known answers** — exact bits, on x86_64 and on aarch64.
 - **Determinism** — the same seed reproduces the exact `rng_u64` stream.
 - **Seed sensitivity** — distinct seeds diverge on the first draw.
-- **Zero-fixed-point guard** — seed 0 must not freeze the stream (xorshift's
-  fixed point is 0; the splitmix64 finalizer + bump-to-1 prevents the all-zero
-  stream).
+- **Zero-fixed-point guard** — xorshift's fixed point is 0, so nothing may leave
+  the stream there. Seed 0 must not freeze it. The one seed that finalizes to 0
+  (`0x61C8864680B583EB`) is bumped to state 1. A 0 written into `_rng_state`
+  steps as state 1. A test that could hang without a guard must check the
+  guard first, so a regression fails instead of hanging CI.
 - **Distribution shape** — `rng_uniform` draws all land in `[0,1)` with sample
   mean ≈ 0.5; `rng_normal` has sample mean ≈ 0 and variance ≈ 1 over 200k draws,
   within the documented tolerances.

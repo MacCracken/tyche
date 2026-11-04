@@ -30,7 +30,10 @@ sampling: ML init, dropout, Monte Carlo, rollout draws.
   load-bearing and freezes WITH the surface: it stays a single i64 cell, and it
   is the *whole* stream state — `rng_normal` keeps no cached second variate.
   Unseeded, it starts at `88172645463325252`, so the unseeded stream is
-  deterministic too.
+  deterministic too. Any i64 may be written into it. The API never produces 0,
+  xorshift's fixed point. A written 0, such as a zeroed or failed checkpoint
+  restore, steps as state 1 (since 1.2.2; through 1.2.1 it froze the stream at 0
+  and `rng_normal` never returned).
 - **Determinism is bit-exact across platforms.** Integer ops wrap mod 2^64, and
   every f64 operation in the stream is a single correctly rounded IEEE-754 op
   (add, sub, mul, div, sqrt — SSE2 on x86_64, scalar FP on aarch64, never fused).
@@ -45,7 +48,9 @@ sampling: ML init, dropout, Monte Carlo, rollout draws.
 ## Stream stability
 
 `rng_seed`, `rng_u64`, `rng_uniform` and `_rng_state` produce the same bits as
-at 0.1.0. `rng_normal` changed once, in **1.1.0**, to honour the cross-platform
+at 0.1.0, from every state the API can reach. The one addition is 1.2.2's rule
+for a state of 0, which no seed produces, so it reaches only a 0 written into
+`_rng_state`. `rng_normal` changed once, in **1.1.0**, to honour the cross-platform
 contract above: through 1.0.3 it called `f64_ln`, so ~34% of aarch64 draws
 differed from x86_64 in the low bits, and on x86_64 the x87 logarithm misrounded
 about 1 draw in 9,250. From 1.1.0 every target produces one stream. On x86_64,

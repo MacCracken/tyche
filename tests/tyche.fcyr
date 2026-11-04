@@ -3,7 +3,8 @@
 # For each seed: the finalized state is never 0 (xorshift's fixed point); no u64
 # output is 0; uniforms lie in [0,1); normals are finite with |x| <= 12.01 (the
 # polar method's exact bound, sqrt(-2 ln s) at the smallest s = 2^-104); and
-# re-seeding replays the stream. _rng_ln is checked for monotonicity between
+# re-seeding replays the stream. A zeroed _rng_state must not stick at 0, and
+# rng_normal must return from it. _rng_ln is checked for monotonicity between
 # adjacent doubles, and for agreement with -k ln 2 at 2^-k (within 1 ulp).
 include "src/rng.cyr"
 
@@ -49,7 +50,7 @@ fn fuzz_main(seed): i64 {
 fn main(): i64 {
     alloc_init();
     # 100k seeds from a splitmix-style walk (covers negative and huge i64), plus
-    # the edges: 0, +-1, i64 min and max.
+    # the edges: 0, +-1, i64 min and max, and the one seed that finalizes to 0.
     var s = 0x9E3779B97F4A7C15;
     var n = 0;
     while (n < 100000) {
@@ -62,6 +63,18 @@ fn main(): i64 {
     fuzz_main(0 - 1);
     fuzz_main(0x7FFFFFFFFFFFFFFF);
     fuzz_main(0 - 0x7FFFFFFFFFFFFFFF - 1);
+    fuzz_main(0x61C8864680B583EB);                   # -0x9E3779B97F4A7C15
+
+    # A zeroed _rng_state (a restored all-zero checkpoint). Unguarded, rng_u64
+    # sticks at 0 and rng_normal never returns, so rng_normal is called only once
+    # rng_u64 is shown to move: a regression fails here instead of hanging.
+    _rng_state = 0;
+    var zu = rng_u64();
+    _fz_check(zu != 0, "FAIL: state 0 sticks at 0");
+    if (zu != 0) {
+        _rng_state = 0;
+        _fz_check(_fz_finite(rng_normal()), "FAIL: rng_normal from state 0 not finite");
+    }
 
     # _rng_ln: monotone across adjacent doubles in (0,1), exact at 2^-k.
     rng_seed(7);
@@ -86,9 +99,9 @@ fn main(): i64 {
         println("fuzz: FAILED");
         return 1;
     }
-    println("fuzz: ok (100005 seeds, 20000 ln pairs, 104 powers of two)");
+    println("fuzz: ok (100006 seeds, zero state, 20000 ln pairs, 104 powers of two)");
     return 0;
 }
 
 var r = main();
-syscall(60, r);
+syscall(SYS_EXIT, r);

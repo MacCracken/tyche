@@ -29,6 +29,26 @@ medians of three runs each. The toolchain again moves nothing. The whole
 session ran about 10 ns faster than the 1.2.0 runs, which is host variance
 between sessions: compare toolchains only within one session.
 
+## 1.2.2 — the P(-1) sweep
+
+Recorded with `./scripts/bench-history.sh` (rows in
+[`../bench-history.csv`](../bench-history.csv)) before and after, in one
+session on the same host and cyrius 6.7.18, median of three runs. The bits are
+identical: same golden dump, and 200,000 normals checked against the reference.
+
+| entry point | 1.2.1 | 1.2.2 | what moved it |
+|---|---:|---:|---|
+| `rng_seed` | 6 ns | 6 ns | |
+| `rng_u64` | 4 ns | 4 ns | +0.3 ns at ps resolution (≈3.96 → 4.27): the state-0 guard. A branch-free `x \| (x == 0)` measured slower (4.49 ns). |
+| `rng_uniform` | 7 ns | 5 ns | `#inline`: 5.74 → 4.74 ns measured with and without it on the same tree. The rest moved without any change to `rng_uniform`, which points to code layout. |
+| `rng_normal` | 345 ns | 331 ns | −4.1%: each coordinate comes straight from `rng_u64()` as `m·2^-52 − 1`, saving a call level and a multiply. |
+| `_rng_ln` | 281 ns | 282 ns | unchanged (noise) |
+
+`_rng_ln` is now 85% of `rng_normal`. cyrius compiles each f64 builtin to
+about 11 instructions of stack-machine code, so its ~220 operations cost
+≈1.3 ns each. A rewrite of the same operations cannot move that much; see
+[`audit/2026-11-04-audit.md`](audit/2026-11-04-audit.md).
+
 ## Why `rng_normal` got slower
 
 Through 1.0.3 its logarithm was one x87 instruction on x86_64 (`f64_ln` →

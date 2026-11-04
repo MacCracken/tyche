@@ -4,7 +4,8 @@ known-answer vectors in tests/tyche.tcyr.
 
 Written from the algorithms, not transcribed from src/rng.cyr's call graph:
   * rng_seed    splitmix64 finalizer (Steele, Lea & Flood 2014); state 0 -> 1
-  * rng_u64     xorshift64, shift triple (13, 7, 17) (Marsaglia 2003)
+  * rng_u64     xorshift64, shift triple (13, 7, 17) (Marsaglia 2003); a
+                state of 0 (only reachable by writing _rng_state) steps as 1
   * rng_uniform (u64 >> 11) * 2^-53
   * rng_normal  Marsaglia polar (Marsaglia & Bray 1964) in IEEE-754 binary64,
                 with tyche's logarithm _rng_ln: the double-double evaluation
@@ -135,7 +136,7 @@ class Tyche:
         self.state = z if z != 0 else 1
 
     def u64(self):
-        x = self.state
+        x = self.state if self.state != 0 else 1
         x ^= (x << 13) & M64
         x ^= x >> 7
         x ^= (x << 17) & M64
@@ -181,10 +182,15 @@ def main():
         return
     t = Tyche()
     print("unseeded u64:", [hx(t.u64()) for _ in range(3)])
-    for sd in (0, 1, 42, -1, -(1 << 63), (1 << 63) - 1):
+    # -0x9E3779B97F4A7C15 is the one seed whose finalizer output is 0 (bumped to 1).
+    for sd in (0, 1, 42, -1, -(1 << 63), (1 << 63) - 1, -0x9E3779B97F4A7C15):
         t.seed(sd & M64)
         st = t.state
         print(f"seed {sd}: state={hx(st)} u64={[hx(t.u64()) for _ in range(3)]}")
+    t.state = 0
+    print("state 0 u64:", [hx(t.u64()) for _ in range(3)])
+    t.state = 0
+    print("state 0 normal[0]:", hx(bits(t.normal())))
     t.seed(12345)
     print("seed 12345 uniform:", [hx(bits(t.uniform())) for _ in range(3)])
     t.seed(777)

@@ -34,6 +34,12 @@ three criteria and the exact-stream tests were only met in the 1.1.0 audit.
 - **1.2.0** (2026-11-04) — toolchain pin 6.7.9, the first 6.7-series pin;
   stream bit-identical.
 - **1.2.1** (2026-11-04) — toolchain pin 6.7.18; stream bit-identical.
+- **1.2.2** (2026-11-04) — P(-1) sweep,
+  [`docs/audit/2026-11-04-audit.md`](../audit/2026-11-04-audit.md). A zeroed
+  `_rng_state` no longer hangs `rng_normal`. Release actions are pinned by
+  SHA and the CI token is read-only. `rng_normal` is 4.1% faster and
+  `rng_uniform` ≈1 ns faster, bit-identical. `scripts/bench-history.sh` is the
+  new baseline tool.
 
 ## Next (unscheduled)
 
@@ -44,8 +50,11 @@ three criteria and the exact-stream tests were only met in the 1.1.0 audit.
   `docs/api.md`: a seeded state passed explicitly, so reproducibility survives
   threads. Additive; the four frozen functions stay as they are. Gate: the SMP
   arc itself.
-- **A faster `_rng_ln`** — `rng_normal` costs 347 ns against 92 ns at 1.0.3.
-  A table-driven reduction is costed in [`docs/benchmarks.md`](../benchmarks.md).
+- **A faster `_rng_ln`** — `rng_normal` costs 331 ns at 1.2.2 (92 ns at 1.0.3),
+  85% of it `_rng_ln`. The 1.2.2 sweep took the bit-identical savings around
+  it. What is left needs a different algorithm, since the cost is the operation
+  count under cyrius's codegen. A table-driven reduction is costed in
+  [`docs/benchmarks.md`](../benchmarks.md).
   ⚠ Any different algorithm will disagree with today's `_rng_ln` on some hard
   cases (today's misrounds about one draw in ten million), so it is a stream
   change: it needs the known-answer vectors to hold, a 10M-draw comparison with

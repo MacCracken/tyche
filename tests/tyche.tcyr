@@ -108,13 +108,29 @@ fn main() {
     rng_seed(2); var q = rng_u64();
     assert(p != q, "distinct seeds -> distinct first output");
 
-    # ---- zero fixed point guard: xorshift's fixed point is 0; the splitmix
-    #      finalizer + bump must keep seed 0 from freezing the stream ----
+    # ---- zero fixed point guard: xorshift's fixed point is 0. Seed 0 must not
+    #      freeze the stream; the one seed that finalizes to 0 is bumped to 1;
+    #      and a zeroed _rng_state (a restored all-zero checkpoint) steps as
+    #      state 1 instead of sticking at 0 and hanging rng_normal ----
     test_group("zero fixed point guard");
     rng_seed(0);
     var z0 = rng_u64(); var z1 = rng_u64();
     assert(z0 != 0, "seed 0 does not produce a zero stream");
     assert(z0 != z1, "stream advances after seed 0");
+    rng_seed(0x61C8864680B583EB);                    # -0x9E3779B97F4A7C15: finalizes to 0
+    assert_eq(_rng_state, 1, "the seed that finalizes to 0 is bumped to state 1");
+    assert_eq(rng_u64(), 0x0000000040822041, "state 1 u64[0]");
+    assert_eq(rng_u64(), 0x100041060C011441, "state 1 u64[1]");
+    _rng_state = 0;
+    var z_u = rng_u64();
+    assert_eq(z_u, 0x0000000040822041, "state 0 steps as state 1");
+    assert_eq(_rng_state, 0x0000000040822041, "state 0 advances");
+    # Without the guard, rng_normal from state 0 never returns: call it only once
+    # the guard is shown to hold, so a regression fails here instead of hanging.
+    if (z_u != 0) {
+        _rng_state = 0;
+        assert_eq(rng_normal(), 0x3FBC7A3A7ABE22B1, "rng_normal from state 0 returns state 1's draw");
+    }
 
     # ---- uniform: every draw in [0,1), sample mean ~ 0.5 ----
     test_group("uniform distribution");
@@ -158,4 +174,4 @@ fn main() {
 }
 
 var exit_code = main();
-syscall(60, exit_code);
+syscall(SYS_EXIT, exit_code);

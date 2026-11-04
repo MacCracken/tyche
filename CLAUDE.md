@@ -39,6 +39,7 @@ cyrius deps                          # resolve sibling deps
 cyrius build src/main.cyr build/tyche
 cyrius test                          # run [build].test + tests/*.tcyr
 cyrius test tests --aarch64          # the same suite under qemu-aarch64 (the contract is cross-target)
+./scripts/bench-history.sh           # benchmark baseline: run before and after a perf change, same session
 ```
 
 ## Key Principles

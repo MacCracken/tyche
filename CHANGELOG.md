@@ -4,6 +4,77 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-04
+
+The P(-1) hardening, optimization and repair sweep, recorded in
+[`docs/audit/2026-11-04-audit.md`](docs/audit/2026-11-04-audit.md). Every state
+the API can reach gives the same bits as 1.2.1. The 512-line golden dump is
+byte-identical on x86_64 and aarch64, and 200,000 `rng_normal` draws match
+`scripts/kat_reference.py` on both.
+
+### Fixed
+
+- **A zeroed `_rng_state` no longer hangs `rng_normal`.** Consumers write
+  `_rng_state` directly to restore checkpoints (the documented API exception).
+  A 0 there, xorshift's fixed point, froze `rng_u64` and `rng_uniform` at 0,
+  and `rng_normal` looped forever: every point landed at s = 2 and was
+  rejected. State 0 now steps as state 1, the bump `rng_seed` already applies.
+  No seed produces 0 and no nonzero state reaches it, so only a written 0 sees
+  the change. A checkpoint captured from a running stream is never 0. The
+  cost is about +0.3 ns per `rng_u64`.
+- **`SECURITY.md`'s threat model** said no input could hang or corrupt the
+  library, and left out `_rng_state`. Corrected. `docs/api.md` now says what
+  writing 0 does.
+
+### Security
+
+- **Release actions are pinned by commit SHA.** `actions/checkout` is at v7.0.1
+  `3d3c42e5…` and `softprops/action-gh-release` at v3.0.3 `efb35369…`. Both
+  are the commits their floating tags pointed at on 2026-11-04, so nothing that
+  runs changes. The release job holds `contents: write`, so a moved tag could
+  have changed what a release publishes.
+- **Least-privilege tokens.** Both workflows default to `contents: read`, and
+  only the release job gets `contents: write`. CI called from the release no
+  longer inherits the write token. Every checkout sets
+  `persist-credentials: false`, so the token is not in `.git/config` when the
+  `curl | sh` installer runs.
+- The release tag filter is `[0-9]+.[0-9]+.[0-9]+*` (the `cyrius init`
+  template's), not `[0-9]*`.
+
+### Changed
+
+- **`rng_normal` is 4.1% faster** (345 → 331 ns, same session). Each coordinate
+  comes straight from `rng_u64()` as `m·2^-52 − 1`. `rng_uniform()` is
+  `m·2^-53` exactly and doubling it is exact, so the subtraction sees the same
+  bits, with one call level and one multiply fewer per coordinate.
+- **`rng_uniform` is `#inline`** (one `return` expression), so cyrius replays it
+  at the call site: 5.74 → 4.74 ns measured with and without it on the same
+  tree. The attribute has existed since cyrius 6.5.63. Older toolchains read the
+  line as a comment, and the bundle compiles under 6.6.2, the consumers' oldest
+  pin.
+- **CI lint gate is strict.** Any warning fails, now in `tests/` as well as
+  `src/`. The "exceeds 120 characters" exception is gone; it matched nothing
+  since cyrius 6.6.13. A `cyrius vet src/main.cyr` step was added.
+- The test, fuzz and bench files exit through `SYS_EXIT` instead of a literal
+  `syscall(60, …)`, x86_64's number, which reached aarch64 only through
+  cyrius's syscall translation.
+
+### Added
+
+- **Tests for both zero guards.** Exact vectors for the one seed that finalizes
+  to 0 (`0x61C8864680B583EB`, bumped to state 1). Until now no test reached
+  `rng_seed`'s bump branch, so deleting it failed nothing. Also vectors for a
+  zeroed `_rng_state`, and a fuzz edge and zero-state check. The suite goes
+  from 49 to **55 assertions**. Without the `rng_u64` guard the suite fails in
+  under a second, because it calls `rng_normal` from state 0 only once
+  `rng_u64` is shown to move.
+- **`scripts/bench-history.sh`** and `bench-history.csv`, the P(-1) baseline
+  tool. It runs the benchmarks as CI does and appends a median-of-three row per
+  benchmark. The first two stamps are this sweep's before and after.
+- **`.gitattributes`** with `lib/** -text`, byte-identical to what
+  `cyrius init` writes. `cyrius.lock` records `lib/`'s exact bytes, so a CRLF
+  checkout would fail `cyrius deps --verify`.
+
 ## [1.2.1] - 2026-11-04
 
 ### Changed

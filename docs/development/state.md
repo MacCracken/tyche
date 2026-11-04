@@ -5,6 +5,13 @@
 
 ## Version
 
+**1.2.2** (2026-11-04) — the P(-1) hardening sweep, recorded in
+[`../audit/2026-11-04-audit.md`](../audit/2026-11-04-audit.md). A 0 written into
+`_rng_state` now steps as state 1, where it used to freeze the stream and hang
+`rng_normal`. Every state the API can reach gives the same bits as 1.2.1.
+Release actions are pinned by SHA and the CI token is read-only. `rng_normal`
+is 4.1% faster and `rng_uniform` ≈1 ns faster.
+
 **1.2.1** (2026-11-04) — toolchain bump to cyrius 6.7.18, the latest release.
 `src/` is unchanged. The stream is bit-identical to 1.2.0 on x86_64 and
 aarch64, and `dist/tyche.cyr` changes only in its version line.
@@ -77,17 +84,32 @@ failed). A pin bump here takes these steps:
 - `dist/tyche.cyr` — consumable bundle, regenerated via `cyrius distlib`.
 - `scripts/kat_reference.py` — independent reference implementation; source of
   the known-answer vectors.
+- `scripts/bench-history.sh` — runs the benchmarks the way CI does and appends
+  a median-of-three row per benchmark to `bench-history.csv` (P(-1) baseline
+  tool, since 1.2.2).
 
 ## Tests
 
-- `tests/tyche.tcyr` — **49 passed, 0 failed**, on x86_64 and on aarch64
-  (qemu, in CI). 39 exact-bit assertions (unseeded stream, seed finalizer at
-  edge seeds, u64 / uniform / normal / `_rng_ln` vectors, the seed-1481 guard
-  against `f64_ln` returning, the `_rng_state` checkpoint) and 10 statistical.
-- `tests/tyche.fcyr` — properties over 100,005 seeds, `_rng_ln` monotonicity
-  and powers of two; x86_64 and aarch64.
+- `tests/tyche.tcyr` — **55 passed, 0 failed**, on x86_64 and on aarch64
+  (qemu, in CI). 45 exact-bit assertions (unseeded stream, seed finalizer at
+  edge seeds including the one that finalizes to 0, u64 / uniform / normal /
+  `_rng_ln` vectors, the seed-1481 guard against `f64_ln` returning, the
+  `_rng_state` checkpoint, a zeroed `_rng_state`) and 10 property/statistical.
+- `tests/tyche.fcyr` — properties over 100,006 seeds, a zeroed state, `_rng_ln`
+  monotonicity and powers of two; x86_64 and aarch64.
 - `tests/tyche.bcyr` — every entry point; numbers in
-  [`../benchmarks.md`](../benchmarks.md).
+  [`../benchmarks.md`](../benchmarks.md) and `bench-history.csv`.
+- Mutation-checked at 1.2.2: dropping either zero guard, or changing
+  `rng_normal`'s scale or shift, fails the suite. Without the `rng_u64` guard
+  it fails in under a second instead of hanging.
+
+## CI gates
+
+fmt, lint (any warning fails, `src/` and `tests/`), `vet`, build + smoke, the
+suite and fuzz on x86_64 and on aarch64 (qemu; fails rather than skips),
+benchmarks, and the `dist/` drift check. Third-party actions are pinned by
+commit SHA. The workflows run with a read-only token; only the release job
+gets `contents: write`, and no checkout persists the token.
 
 ## Dependencies
 
@@ -103,8 +125,11 @@ ships no `dist/tyche.deps`.
 
 ## Consumers
 
-Seven declare `[deps.tyche]` (surveyed 2026-11-03; unchanged at 1.2.0 and 1.2.1). agnosai pins `tag = "1.1.0"`.
-amuzesh, attn11, prajna, rosnet, tarka and tentib pin `tag = "1.0.1"`. agnostic
+Seven declare `[deps.tyche]` (surveyed 2026-11-03; unchanged at 1.2.0, 1.2.1
+and 1.2.2). agnosai pins `tag = "1.1.0"` under cyrius 6.6.14. amuzesh, attn11,
+prajna, rosnet, tarka and tentib pin `tag = "1.0.1"` under cyrius 6.6.2; the
+1.2.2 bundle compiles under 6.6.2 on both targets with the reference's bits.
+agnostic
 used to declare tyche, but that block never took effect; it gets tyche through
 agnosai and makes no `rng_*` call. Every direct consumer declares all ten
 stdlib leaves the old `dist/tyche.deps` listed, so dropping the sidecar in
@@ -117,7 +142,8 @@ as with 1.0.1, under their pinned cyrius 6.6.2. agnosai's one failing assertion
 
 - **`rng_normal` is 3.8× slower** than at 1.0.3 (347 ns against 92 ns; 358 ns
   on the same host at 1.1.1, identical under 6.6.6 and 6.6.20; 345–358 ns
-  through 1.2.1, moving with the host session rather than the toolchain), the price
+  through 1.2.1, moving with the host session rather than the toolchain; 331 ns
+  at 1.2.2, against 345 ns for 1.2.1 in the same session), the price
   of a near-correctly-rounded logarithm from basic ops. Options are costed in
   [`../benchmarks.md`](../benchmarks.md); a faster `_rng_ln` must keep identical
   bits.
